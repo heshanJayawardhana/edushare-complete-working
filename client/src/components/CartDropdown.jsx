@@ -2,11 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2 } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../utils/api';
 
 export default function CartDropdown() {
   const navigate = useNavigate();
-  const { items, totalItems, totalPrice, removeFromCart, clearCart } = useCart();
+  const { items, totalItems, totalPrice, removeFromCart } = useCart();
   const { isAuthenticated } = useAuth();
 
   async function checkout() {
@@ -16,13 +15,7 @@ export default function CartDropdown() {
     }
 
     if (!items.length) return;
-
-    await api.post('/orders/checkout', {
-      items: items.map((item) => ({ resourceId: item._id }))
-    });
-
-    clearCart();
-    navigate('/profile');
+    navigate('/checkout');
   }
 
   return (

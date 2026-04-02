@@ -15,6 +15,8 @@ import StudentProfilePage from './pages/StudentProfilePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import ContactPage from './pages/ContactPage';
 import ConnectionsPage from './pages/ConnectionsPage';
+import CheckoutPage from './pages/CheckoutPage';
+import PaymentPage from './pages/PaymentPage';
 
 export default function App() {
   return (
@@ -51,6 +53,22 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <ConnectionsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/checkout"
+                element={
+                  <ProtectedRoute>
+                    <CheckoutPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment"
+                element={
+                  <ProtectedRoute>
+                    <PaymentPage />
                   </ProtectedRoute>
                 }
               />

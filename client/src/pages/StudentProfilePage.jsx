@@ -8,19 +8,28 @@ export default function StudentProfilePage() {
   const [orders, setOrders] = useState([]);
   const [library, setLibrary] = useState([]);
   const [inquiries, setInquiries] = useState([]);
+  const [paymentTransactions, setPaymentTransactions] = useState([]);
 
   useEffect(() => {
     refreshProfile().catch(() => {});
-    Promise.all([
+    Promise.allSettled([
       api.get('/resources/my/list'),
       api.get('/orders/my-orders'),
       api.get('/orders/my-library'),
-      api.get('/inquiries/my')
-    ]).then(([resourcesRes, ordersRes, libraryRes, inquiriesRes]) => {
-      setMyResources(resourcesRes.data.resources || []);
-      setOrders(ordersRes.data.orders || []);
-      setLibrary(libraryRes.data.library || []);
-      setInquiries(inquiriesRes.data.inquiries || []);
+      api.get('/inquiries/my'),
+      api.get('/payments/transactions')
+    ]).then((results) => {
+      const resourcesRes = results[0].status === 'fulfilled' ? results[0].value : null;
+      const ordersRes = results[1].status === 'fulfilled' ? results[1].value : null;
+      const libraryRes = results[2].status === 'fulfilled' ? results[2].value : null;
+      const inquiriesRes = results[3].status === 'fulfilled' ? results[3].value : null;
+      const paymentsRes = results[4].status === 'fulfilled' ? results[4].value : null;
+
+      setMyResources(resourcesRes?.data?.resources || []);
+      setOrders(ordersRes?.data?.orders || []);
+      setLibrary(libraryRes?.data?.library || []);
+      setInquiries(inquiriesRes?.data?.inquiries || []);
+      setPaymentTransactions(paymentsRes?.data?.transactions || []);
     }).catch(() => {});
   }, []);
 
@@ -68,6 +77,29 @@ export default function StudentProfilePage() {
                 </p>
               </div>
             )) : <p className="text-sm text-slate-500">No orders yet.</p>}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+          <h2 className="mb-4 text-xl font-semibold text-slate-900">Payment history</h2>
+          <div className="space-y-3">
+            {paymentTransactions.length ? paymentTransactions.slice(0, 8).map((t) => (
+              <div key={t.id} className="rounded-xl border border-slate-100 p-4">
+                <p className="font-medium text-slate-900">{t.resourceName}</p>
+                <p className="text-sm text-slate-500">{t.date} · LKR {Number(t.amount || 0).toFixed(2)}</p>
+                <p
+                  className={`mt-2 text-xs font-semibold ${
+                    t.status === 'approved'
+                      ? 'text-emerald-700'
+                      : t.status === 'rejected'
+                      ? 'text-red-700'
+                      : 'text-amber-700'
+                  }`}
+                >
+                  {t.status}
+                </p>
+              </div>
+            )) : <p className="text-sm text-slate-500">No payments yet.</p>}
           </div>
         </section>
 
