@@ -4,11 +4,18 @@ import api from '../utils/api';
 export default function AdminDashboardPage() {
   const [data, setData] = useState({ stats: {}, users: [], resources: [], comments: [], inquiries: [] });
   const [loading, setLoading] = useState(true);
+  const [paymentTransactions, setPaymentTransactions] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   async function load() {
     setLoading(true);
-    const response = await api.get('/admin/dashboard');
-    setData(response.data);
+    const [dashboardRes, paymentsRes] = await Promise.all([
+      api.get('/admin/dashboard'),
+      api.get('/payments/transactions')
+    ]);
+
+    setData(dashboardRes.data);
+    setPaymentTransactions(paymentsRes.data?.transactions || []);
     setLoading(false);
   }
 
@@ -35,9 +42,26 @@ export default function AdminDashboardPage() {
     load();
   }
 
+  async function updatePaymentStatus(transactionId, nextStatus) {
+    setPaymentsLoading(true);
+    try {
+      await api.patch(`/payments/transactions/${transactionId}/status`, { status: nextStatus });
+      const paymentsRes = await api.get('/payments/transactions');
+      setPaymentTransactions(paymentsRes.data?.transactions || []);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }
+
   if (loading) {
     return <main className="mx-auto max-w-7xl px-4 py-10 text-slate-500">Loading admin dashboard...</main>;
   }
+
+  const statusStyles = {
+    pending: 'bg-amber-100 text-amber-700 border-amber-200',
+    approved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    rejected: 'bg-red-100 text-red-700 border-red-200'
+  };
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -122,6 +146,83 @@ export default function AdminDashboardPage() {
           </div>
         </section>
       </div>
+
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Payment history</h2>
+            <p className="mt-1 text-sm text-slate-600">Review student payments and set status</p>
+          </div>
+          {paymentsLoading ? (
+            <p className="text-sm text-slate-500">Updating...</p>
+          ) : (
+            <p className="text-sm text-slate-500">{paymentTransactions.length} record(s)</p>
+          )}
+        </div>
+
+        <div className="mt-5 overflow-x-auto">
+          {paymentTransactions.length ? (
+            <table className="min-w-[760px] w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-3 pr-4 text-left font-medium text-slate-500">Date</th>
+                  <th className="py-3 pr-4 text-left font-medium text-slate-500">Resource</th>
+                  <th className="py-3 pr-4 text-left font-medium text-slate-500">Buyer</th>
+                  <th className="py-3 pr-4 text-left font-medium text-slate-500">Amount</th>
+                  <th className="py-3 pr-4 text-left font-medium text-slate-500">Status</th>
+                  <th className="py-3 pr-4 text-left font-medium text-slate-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentTransactions.map((t) => {
+                  const buyer = data.users.find((u) => String(u._id) === String(t.buyerId));
+                  return (
+                    <tr key={t.id} className="border-b last:border-b-0">
+                      <td className="py-3 pr-4 text-slate-600 whitespace-nowrap">{t.date}</td>
+                      <td className="py-3 pr-4 text-slate-900 font-medium">{t.resourceName}</td>
+                      <td className="py-3 pr-4 text-slate-600 whitespace-nowrap">{buyer?.name || 'Unknown'}</td>
+                      <td className="py-3 pr-4 text-slate-900 font-semibold whitespace-nowrap">
+                        LKR {Number(t.amount || 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[t.status] || statusStyles.pending}`}>
+                          {t.status}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap">
+                        {t.status === 'pending' ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updatePaymentStatus(t.id, 'approved')}
+                              className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                              disabled={paymentsLoading}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updatePaymentStatus(t.id, 'rejected')}
+                              className="rounded-xl bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                              disabled={paymentsLoading}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">No actions</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="py-8 text-sm text-slate-500">No payment records found.</p>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
